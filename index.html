@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>QR Maker</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <header>
+    <h1>QR Maker</h1>
+  </header>
+
+  <main>
+    <div class="field">
+      <input
+        id="input"
+        type="text"
+        inputmode="url"
+        placeholder="https://example.com"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        aria-label="QRコードにするURL"
+        autofocus>
+    </div>
+
+    <div class="qr-wrap">
+      <canvas id="canvas" hidden></canvas>
+      <p class="note" id="note">URLを貼るとQRコードが出ます</p>
+    </div>
+
+    <button id="download-btn" disabled>PNGで保存</button>
+  </main>
+
+  <footer>
+    <a href="https://github.com/daaaaaai/qrcode_maker" target="_blank" rel="noopener noreferrer">GitHub</a>
+  </footer>
+
+  <script src="./qrcode.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

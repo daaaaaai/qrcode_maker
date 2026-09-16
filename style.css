@@ -1,0 +1,126 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --border: #e5e5e5;
+  --ink: #1a1a1a;
+  --ink-soft: #767676;
+  --accent: #2563eb;
+  --radius: 16px;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Segoe UI", sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 16px calc(32px + env(safe-area-inset-bottom));
+  gap: 24px;
+}
+
+header {
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+}
+
+h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+main {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+/* ── 入力 ─────────────────────────────── */
+.field { width: 100%; }
+
+#input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+#input::placeholder { color: #b8b8b8; }
+#input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ── QR 表示 ──────────────────────────── */
+.qr-wrap {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 16px;
+}
+
+#canvas {
+  width: 100%;
+  height: 100%;
+  /* モジュールの境目をぼかさない */
+  image-rendering: pixelated;
+}
+
+.note {
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--ink-soft);
+  text-align: center;
+  padding: 0 8px;
+}
+.note.error { color: #dc2626; }
+
+/* ── 保存 ─────────────────────────────── */
+#download-btn {
+  width: 100%;
+  max-width: 320px;
+  padding: 13px 20px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--surface);
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+#download-btn:hover:not(:disabled) { background: #333; }
+#download-btn:disabled {
+  background: var(--surface);
+  color: #c4c4c4;
+  border: 1px solid var(--border);
+  cursor: default;
+}
+
+footer {
+  font-size: 0.8rem;
+}
+footer a {
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+footer a:hover { color: var(--ink); text-decoration: underline; }
