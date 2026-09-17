@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * URL を入力すると、そのままの内容でプレーンな QR コードを描く。
+ * URL を入力すると、そのままの内容で QR コードを描く。
  * 入力は一切加工しない（スキームの補完などもしない）。見えている文字列と
  * QR に入る内容を常に一致させるため。
  */
@@ -11,13 +11,19 @@ const canvas      = document.getElementById('canvas');
 const ctx         = canvas.getContext('2d');
 const note        = document.getElementById('note');
 const downloadBtn = document.getElementById('download-btn');
+const shapeGroup  = document.getElementById('shape-group');
+const fgInput     = document.getElementById('fg-input');
+const bgInput     = document.getElementById('bg-input');
+const contrastEl  = document.getElementById('contrast');
+const warnEl      = document.getElementById('warn');
+const resetBtn    = document.getElementById('reset-btn');
 
 /** QR コードの仕様で定められた四辺の余白（モジュール数） */
 const QUIET_MODULES = 4;
 /** 保存する PNG の一辺の目安。モジュール数で割り切れる値に丸めて使う */
 const TARGET_PX = 1024;
-/** 誤り訂正レベル。L/M/Q/H のうち、汎用的な M を固定で使う */
-const ERROR_CORRECTION = 'M';
+
+const DEFAULTS = { shape: 'square', fg: '#000000', bg: '#ffffff' };
 
 /*
  * 文字列→バイト列の変換を UTF-8 にする。
@@ -26,7 +32,123 @@ const ERROR_CORRECTION = 'M';
  */
 qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
 
+/**
+ * 粒の形。`radius` はモジュール1辺に対する比率。
+ *
+ * `square` 以外では誤り訂正レベルを上げる。形を崩したぶんの余裕を、
+ * 操作を増やさずに確保するため（レベルを上げるとモジュール数も増えて粒が細かくなる）。
+ */
+const SHAPES = {
+  square: { ec: 'M', radius: 0    },
+  round:  { ec: 'Q', radius: 0.3  },
+  dot:    { ec: 'Q', radius: 0.5, inset: 0.85 },
+};
+
+/** これを下回ったら読み取りが不安定になりうる、という目安のコントラスト比 */
+const CONTRAST_MIN = 3;
+
+let shape       = DEFAULTS.shape;
+let fg          = DEFAULTS.fg;
+let bg          = DEFAULTS.bg;
 let currentText = '';
+
+// ─── 色 ────────────────────────────────────────────────
+
+/** 相対輝度（WCAG の定義） */
+function luminance(hex) {
+  const ch = [1, 3, 5]
+    .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+}
+
+/** コントラスト比。1〜21 の値を返す */
+function contrastRatio(a, b) {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+function updateColorHints() {
+  const ratio = contrastRatio(fg, bg);
+  contrastEl.textContent = `明暗差 ${ratio.toFixed(1)}:1`;
+
+  const messages = [];
+  if (ratio < CONTRAST_MIN) {
+    messages.push('前景と背景の明暗差が小さく、読み取れないことがあります。');
+  }
+  if (luminance(fg) > luminance(bg)) {
+    // 規格は「暗い前景／明るい背景」を前提にしている
+    messages.push('明暗が反転しています。読み取り機によっては読めません。');
+  }
+
+  warnEl.hidden = messages.length === 0;
+  warnEl.textContent = messages.join(' ');
+}
+
+// ─── 描画 ──────────────────────────────────────────────
+
+/**
+ * 3隅の位置検出パターン（7×7）に含まれるか。
+ *
+ * ここは読み取り機が 1:1:3:1:1 の比率で探し当てる部分なので、**常に四角で描く**。
+ * 丸めると検出そのものが失敗する。形を選べるのはデータ部だけ。
+ */
+function isFinder(row, col, count) {
+  return (
+    (row < 7 && col < 7) ||
+    (row < 7 && col >= count - 7) ||
+    (row >= count - 7 && col < 7)
+  );
+}
+
+function drawModule(x, y, size, def, square) {
+  if (square || def.radius === 0) {
+    ctx.fillRect(x, y, size, size);
+    return;
+  }
+  if (def.inset) {
+    ctx.beginPath();
+    ctx.arc(x + size / 2, y + size / 2, (size / 2) * def.inset, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+  ctx.beginPath();
+  ctx.roundRect(x, y, size, size, size * def.radius);
+  ctx.fill();
+}
+
+function draw(qr, def) {
+  const count = qr.getModuleCount();
+  const total = count + QUIET_MODULES * 2;
+  // モジュールを整数ピクセルに揃える。端数があるとスキャン時に読みにくくなる
+  const scale = Math.max(1, Math.round(TARGET_PX / total));
+  const size  = total * scale;
+
+  canvas.width  = size;
+  canvas.height = size;
+
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.fillStyle = fg;
+  for (let row = 0; row < count; row++) {
+    for (let col = 0; col < count; col++) {
+      if (!qr.isDark(row, col)) continue;
+      drawModule(
+        (col + QUIET_MODULES) * scale,
+        (row + QUIET_MODULES) * scale,
+        scale,
+        def,
+        isFinder(row, col, count),
+      );
+    }
+  }
+
+  canvas.classList.toggle('smooth', def.radius !== 0);
+  canvas.hidden = false;
+  note.hidden = true;
+  downloadBtn.disabled = false;
+}
 
 function showNote(message, isError) {
   canvas.hidden = true;
@@ -37,43 +159,19 @@ function showNote(message, isError) {
   currentText = '';
 }
 
-function draw(qr) {
-  const count = qr.getModuleCount();
-  const total = count + QUIET_MODULES * 2;
-  // モジュールを整数ピクセルに揃える。端数があるとスキャン時に読みにくくなる
-  const scale = Math.max(1, Math.round(TARGET_PX / total));
-  const size  = total * scale;
-
-  canvas.width  = size;
-  canvas.height = size;
-
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, size, size);
-
-  ctx.fillStyle = '#000000';
-  for (let row = 0; row < count; row++) {
-    for (let col = 0; col < count; col++) {
-      if (!qr.isDark(row, col)) continue;
-      ctx.fillRect((col + QUIET_MODULES) * scale, (row + QUIET_MODULES) * scale, scale, scale);
-    }
-  }
-
-  canvas.hidden = false;
-  note.hidden = true;
-  downloadBtn.disabled = false;
-}
-
 function render() {
-  const text = input.value.trim();
+  updateColorHints();
 
+  const text = input.value.trim();
   if (!text) {
     showNote('URLを貼るとQRコードが出ます', false);
     return;
   }
 
+  const def = SHAPES[shape];
   let qr;
   try {
-    qr = qrcode(0, ERROR_CORRECTION); // 第1引数 0 = 型番を内容量から自動決定
+    qr = qrcode(0, def.ec); // 第1引数 0 = 型番を内容量から自動決定
     qr.addData(text);
     qr.make();
   } catch (_) {
@@ -83,8 +181,10 @@ function render() {
   }
 
   currentText = text;
-  draw(qr);
+  draw(qr, def);
 }
+
+// ─── 保存 ──────────────────────────────────────────────
 
 /** 保存名。URL として読めればホスト名を使い、無理なら qrcode にする */
 function fileName() {
@@ -107,6 +207,30 @@ function download() {
     URL.revokeObjectURL(url);
   }, 'image/png');
 }
+
+// ─── 操作 ──────────────────────────────────────────────
+
+function selectShape(next) {
+  shape = next;
+  for (const btn of shapeGroup.querySelectorAll('.seg')) {
+    btn.setAttribute('aria-checked', String(btn.dataset.shape === next));
+  }
+  render();
+}
+
+shapeGroup.addEventListener('click', (e) => {
+  const btn = e.target.closest('.seg');
+  if (btn) selectShape(btn.dataset.shape);
+});
+
+fgInput.addEventListener('input', () => { fg = fgInput.value; render(); });
+bgInput.addEventListener('input', () => { bg = bgInput.value; render(); });
+
+resetBtn.addEventListener('click', () => {
+  fg = fgInput.value = DEFAULTS.fg;
+  bg = bgInput.value = DEFAULTS.bg;
+  selectShape(DEFAULTS.shape);
+});
 
 input.addEventListener('input', render);
 downloadBtn.addEventListener('click', download);

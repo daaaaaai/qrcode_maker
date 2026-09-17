@@ -32,6 +32,33 @@
       <p class="note" id="note">URLを貼るとQRコードが出ます</p>
     </div>
 
+    <div class="controls">
+      <div class="control-row">
+        <span class="control-label">粒</span>
+        <div class="segmented" id="shape-group" role="radiogroup" aria-label="粒の形">
+          <button type="button" class="seg" data-shape="square" role="radio" aria-checked="true">四角</button>
+          <button type="button" class="seg" data-shape="round"  role="radio" aria-checked="false">角丸</button>
+          <button type="button" class="seg" data-shape="dot"    role="radio" aria-checked="false">ドット</button>
+        </div>
+      </div>
+
+      <div class="control-row">
+        <span class="control-label">色</span>
+        <label class="swatch">
+          <input type="color" id="fg-input" value="#000000">
+          <span>前景</span>
+        </label>
+        <label class="swatch">
+          <input type="color" id="bg-input" value="#ffffff">
+          <span>背景</span>
+        </label>
+        <span class="contrast" id="contrast" title="明暗の差。数字が大きいほど読み取りやすい"></span>
+        <button type="button" class="reset-btn" id="reset-btn">戻す</button>
+      </div>
+
+      <p class="warn" id="warn" hidden></p>
+    </div>
+
     <button id="download-btn" disabled>PNGで保存</button>
   </main>
 
