@@ -17,13 +17,15 @@ const bgInput     = document.getElementById('bg-input');
 const contrastEl  = document.getElementById('contrast');
 const warnEl      = document.getElementById('warn');
 const resetBtn    = document.getElementById('reset-btn');
+const centerInput = document.getElementById('center-input');
+const centerSizes = document.getElementById('center-size-group');
 
 /** QR コードの仕様で定められた四辺の余白（モジュール数） */
 const QUIET_MODULES = 4;
 /** 保存する PNG の一辺の目安。モジュール数で割り切れる値に丸めて使う */
 const TARGET_PX = 1024;
 
-const DEFAULTS = { shape: 'square', fg: '#000000', bg: '#ffffff' };
+const DEFAULTS = { shape: 'square', fg: '#000000', bg: '#ffffff', center: '', centerSize: 'm' };
 
 /*
  * 文字列→バイト列の変換を UTF-8 にする。
@@ -44,12 +46,33 @@ const SHAPES = {
   dot:    { ec: 'Q', radius: 0.5, inset: 0.85 },
 };
 
+/**
+ * 使う誤り訂正レベル。
+ * 中央に文字を重ねるとその面積ぶんモジュールが読めなくなるので、最も強い H にする。
+ * 粒の形による底上げ（Q）より優先される。
+ */
+function errorCorrection() {
+  return center ? 'H' : SHAPES[shape].ec;
+}
+
 /** これを下回ったら読み取りが不安定になりうる、という目安のコントラスト比 */
 const CONTRAST_MIN = 3;
+
+/*
+ * 中央に重ねる箱の一辺（コード本体の一辺に対する比率）。
+ *
+ * 誤り訂正 H での実測では一辺 48%（面積 23%）まで読めて 50% で読めなくなる。
+ * そこまで使わず 35% で止めているのは、誤り訂正がもともと汚れやかすれのための
+ * 余裕であり、文字で使い切ると印刷の擦れや影で読めなくなるため。
+ * 検証に使った ZXing は実機のカメラより寛容でもあるので、その分も見込んでいる。
+ */
+const CENTER_SIZES = { s: 0.22, m: 0.28, l: 0.35 };
 
 let shape       = DEFAULTS.shape;
 let fg          = DEFAULTS.fg;
 let bg          = DEFAULTS.bg;
+let center      = DEFAULTS.center;
+let centerSize  = DEFAULTS.centerSize;
 let currentText = '';
 
 // ─── 色 ────────────────────────────────────────────────
@@ -117,6 +140,33 @@ function drawModule(x, y, size, def, square) {
   ctx.fill();
 }
 
+/**
+ * 中央に箱と文字を重ねる。モジュールを描いたあとに上から乗せる。
+ * 文字は箱の内側に収まるまでフォントサイズを詰める（長い文字ではみ出させない）。
+ */
+function drawCenter(canvasSize, codePx) {
+  const box = Math.round(codePx * CENTER_SIZES[centerSize]);
+  const x = (canvasSize - box) / 2;
+  const y = (canvasSize - box) / 2;
+
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.roundRect(x, y, box, box, box * 0.15);
+  ctx.fill();
+
+  ctx.fillStyle = fg;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const maxWidth = box * 0.78;
+  let fontSize = Math.floor(box * 0.46);
+  for (; fontSize > 4; fontSize--) {
+    ctx.font = `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Segoe UI", sans-serif`;
+    if (ctx.measureText(center).width <= maxWidth) break;
+  }
+  ctx.fillText(center, canvasSize / 2, canvasSize / 2);
+}
+
 function draw(qr, def) {
   const count = qr.getModuleCount();
   const total = count + QUIET_MODULES * 2;
@@ -144,6 +194,8 @@ function draw(qr, def) {
     }
   }
 
+  if (center) drawCenter(size, count * scale);
+
   canvas.classList.toggle('smooth', def.radius !== 0);
   canvas.hidden = false;
   note.hidden = true;
@@ -161,6 +213,7 @@ function showNote(message, isError) {
 
 function render() {
   updateColorHints();
+  centerSizes.classList.toggle('disabled', center === '');
 
   const text = input.value.trim();
   if (!text) {
@@ -171,7 +224,7 @@ function render() {
   const def = SHAPES[shape];
   let qr;
   try {
-    qr = qrcode(0, def.ec); // 第1引数 0 = 型番を内容量から自動決定
+    qr = qrcode(0, errorCorrection()); // 第1引数 0 = 型番を内容量から自動決定
     qr.addData(text);
     qr.make();
   } catch (_) {
@@ -223,12 +276,32 @@ shapeGroup.addEventListener('click', (e) => {
   if (btn) selectShape(btn.dataset.shape);
 });
 
+function selectCenterSize(next) {
+  centerSize = next;
+  for (const btn of centerSizes.querySelectorAll('.seg')) {
+    btn.setAttribute('aria-checked', String(btn.dataset.size === next));
+  }
+  render();
+}
+
+centerSizes.addEventListener('click', (e) => {
+  const btn = e.target.closest('.seg');
+  if (btn) selectCenterSize(btn.dataset.size);
+});
+
 fgInput.addEventListener('input', () => { fg = fgInput.value; render(); });
 bgInput.addEventListener('input', () => { bg = bgInput.value; render(); });
+
+centerInput.addEventListener('input', () => {
+  center = centerInput.value.trim();
+  render();
+});
 
 resetBtn.addEventListener('click', () => {
   fg = fgInput.value = DEFAULTS.fg;
   bg = bgInput.value = DEFAULTS.bg;
+  center = centerInput.value = DEFAULTS.center;
+  selectCenterSize(DEFAULTS.centerSize);
   selectShape(DEFAULTS.shape);
 });
 

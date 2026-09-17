@@ -56,6 +56,18 @@
         <button type="button" class="reset-btn" id="reset-btn">戻す</button>
       </div>
 
+      <div class="control-row">
+        <span class="control-label">文字</span>
+        <input type="text" id="center-input" class="center-input" maxlength="8"
+               placeholder="中央に入れる文字（任意）" autocomplete="off" spellcheck="false"
+               aria-label="中央に入れる文字">
+        <div class="segmented compact" id="center-size-group" role="radiogroup" aria-label="文字の大きさ">
+          <button type="button" class="seg" data-size="s" role="radio" aria-checked="false">小</button>
+          <button type="button" class="seg" data-size="m" role="radio" aria-checked="true">中</button>
+          <button type="button" class="seg" data-size="l" role="radio" aria-checked="false">大</button>
+        </div>
+      </div>
+
       <p class="warn" id="warn" hidden></p>
     </div>
 

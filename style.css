@@ -139,6 +139,26 @@ main {
 .seg[aria-checked="true"] { background: var(--ink); color: var(--surface); }
 .seg:not([aria-checked="true"]):hover { background: #f2f2f2; color: var(--ink); }
 
+.segmented.compact { flex: 0 0 108px; }
+.segmented.compact .seg { padding: 6px 0; font-size: 0.74rem; }
+
+.center-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.78rem;
+}
+.center-input::placeholder { color: #c4c4c4; }
+.center-input:focus { outline: none; border-color: var(--accent); }
+
+/* 文字が空なら大きさは効かないので、触れないことを見た目でも示す */
+.segmented.disabled { opacity: 0.45; pointer-events: none; }
+
 .swatch {
   display: flex;
   align-items: center;
