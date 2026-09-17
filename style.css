@@ -206,6 +206,15 @@ main {
   padding: 8px 10px;
 }
 
+.hint {
+  font-size: 0.72rem;
+  line-height: 1.7;
+  color: var(--ink-soft);
+  background: #f4f4f4;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
 /* ── 保存 ─────────────────────────────── */
 #download-btn {
   width: 100%;

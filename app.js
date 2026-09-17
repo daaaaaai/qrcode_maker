@@ -16,6 +16,7 @@ const fgInput     = document.getElementById('fg-input');
 const bgInput     = document.getElementById('bg-input');
 const contrastEl  = document.getElementById('contrast');
 const warnEl      = document.getElementById('warn');
+const hintEl      = document.getElementById('hint');
 const resetBtn    = document.getElementById('reset-btn');
 const centerInput = document.getElementById('center-input');
 const centerSizes = document.getElementById('center-size-group');
@@ -196,6 +197,14 @@ function draw(qr, def) {
 
   if (center) drawCenter(size, count * scale);
 
+  // 誤り訂正を H に上げたぶんモジュールが増えている。小さく刷るときに効くので伝える
+  hintEl.hidden = !center;
+  if (center) {
+    hintEl.textContent =
+      `中央に文字を入れたぶん粒が細かくなっています（${count}×${count}）。` +
+      '小さく印刷するときは、実際に読み取れるか確かめてください。';
+  }
+
   canvas.classList.toggle('smooth', def.radius !== 0);
   canvas.hidden = false;
   note.hidden = true;
@@ -208,6 +217,7 @@ function showNote(message, isError) {
   note.textContent = message;
   note.classList.toggle('error', Boolean(isError));
   downloadBtn.disabled = true;
+  hintEl.hidden = true;
   currentText = '';
 }
 
